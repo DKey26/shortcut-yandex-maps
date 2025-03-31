@@ -76,7 +76,6 @@ const handleMapClick = async (e) => {
     const route = await routeService.buildRoadRoute(toRaw(mapStore.startPoint), endPointAir);
     const intersection = findRoadIntersection(route);
 
-    console.log(intersection);
     if (intersection) {
       await drawRoadRoute(toRaw(mapStore.startPoint), intersection);
     } else {
@@ -91,6 +90,9 @@ const handleMapClick = async (e) => {
     );
 
     mapStore.updateDistances(airDist, roadDist);
+    console.log(`Расстояние по воздуху: ${airDist.toFixed(2)} км`);
+    console.log(`Расстояние по дороге: ${roadDist.toFixed(2)} км`);
+
   } catch (error) {
     console.error('Ошибка построения маршрута:', error);
   }
