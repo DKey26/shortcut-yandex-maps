@@ -1,5 +1,5 @@
 <script setup>
-import YandexMap from './components/YandexMap.vue'
+import YandexMap from './components/YandexMap.vue';
 </script>
 
 <template>

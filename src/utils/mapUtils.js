@@ -8,7 +8,7 @@ export const isPointInPolygon = (point, polygonCoords) => {
     j = i++
   ) {
     const current = polygonCoords[i];
-    const next = polygonCoords[j];s
+    const next = polygonCoords[j];
     // Текущая вершина (current)
     const xi = current[1]; // longitude
     const yi = current[0]; // latitude

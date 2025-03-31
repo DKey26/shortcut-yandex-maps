@@ -5,7 +5,8 @@ module.exports = {
     es2021: true,
     node: true,
   },
-  extends: ["airbnb-base"],
+  extends: ["airbnb-base", "plugin:vue/recommended"],
+  parser: 'vue-eslint-parser',
   parserOptions: {
     ecmaVersion: "latest",
     sourceType: "module",
@@ -15,7 +16,11 @@ module.exports = {
     // Базовые переопределения правил Airbnb для Vue
     "import/no-unresolved": "off",
     "import/extensions": "off",
+    "no-use-before-define": "off",
     "vue/multi-word-component-names": "off",
+    "no-underscore-dangle": "off",
+    "no-return-await": "off",
+    "no-plusplus": "off",
     "max-len": ["error", { code: 140, ignoreUrls: true }],
     "no-param-reassign": ["error", { props: false }],
     "import/prefer-default-export": "off",
