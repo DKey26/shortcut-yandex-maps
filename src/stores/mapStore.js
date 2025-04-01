@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { toRaw } from 'vue';
-import { saveLSData, getLSData, removeLSData } from '@/utils/localStorageUtils';
+import { saveLSData, getLSData } from '@/utils/localStorageUtils';
 
 export const useMapStore = defineStore('map', {
   state: () => ({
@@ -11,6 +11,7 @@ export const useMapStore = defineStore('map', {
     startPoint: null,
     routes: [],
   }),
+
   actions: {
     saveRoute(from, to, type, name, isActive = true) {
       this.routes.push({
@@ -46,15 +47,7 @@ export const useMapStore = defineStore('map', {
         this.routes = data;
       }
     },
-    // clearRoutes(map) {
-    //   if (!this.airRoute || !this.roadRoute) return;
 
-    //   [toRaw(this.airRoute), toRaw(this.roadRoute)].forEach((route) => {
-    //     if (route) map.geoObjects.remove(route);
-    //   });
-    //   this.airRoute = null;
-    //   this.roadRoute = null;
-    // },
     clearRoutes(map) {
       this.routes = this.routes.map((route) => {
         if (route.isActive) {
@@ -64,6 +57,7 @@ export const useMapStore = defineStore('map', {
         return route;
       });
     },
+
     updateDistances(air, road) {
       this.airDistance = air.toFixed(1);
       this.roadDistance = road.toFixed(1);

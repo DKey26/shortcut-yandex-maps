@@ -142,11 +142,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="mapContainer" style="width: 100%; height: 100%">
-    <div v-if="loadError" class="error">
+  <div
+    ref="mapContainer"
+    style="width: 100%; height: 100%"
+  >
+    <div
+      v-if="loadError"
+      class="error"
+    >
       {{ loadError }}
     </div>
-    <div v-else-if="!isScriptLoaded" class="loading">
+    <div
+      v-else-if="!isScriptLoaded"
+      class="loading"
+    >
       Загрузка карты...
     </div>
   </div>

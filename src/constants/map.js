@@ -593,17 +593,17 @@ export const AROUND_MKAD_COORDS = [
 export const MAP_CENTER = [55.752277, 37.620851];
 export const MAP_ZOOM = 10;
 export const POLYGON_STYLE = {
-  fillColor: "#00000022",
-  strokeColor: "#121212",
+  fillColor: '#00000022',
+  strokeColor: '#121212',
   strokeOpacity: 0.5,
   strokeWidth: 2,
-  strokeStyle: "dash",
-  interactivityModel: "default#transparent",
+  strokeStyle: 'dash',
+  interactivityModel: 'default#transparent',
 };
 export const AIR_LINE_STYLE = {
   strokeColor: '#333333',
   strokeWidth: 3,
-  strokeStyle: "dash",
+  strokeStyle: 'dash',
   strokeOpacity: 0.7,
 };
 export const ROAD_LINE_STYLE = {
