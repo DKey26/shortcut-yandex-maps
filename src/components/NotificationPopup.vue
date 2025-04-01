@@ -1,14 +1,26 @@
 <template>
   <div>
-    <div v-if="isVisible" ref="popup" class="fixed top-4 right-4 w-72" :class="animationClass"
-      @animationend="handleAnimationEnd">
+    <div
+      v-if="isVisible"
+      ref="popup"
+      class="fixed top-4 right-4 w-72"
+      :class="animationClass"
+      @animationend="handleAnimationEnd"
+    >
       <div class="bg-white border-l-4 border-green-500 rounded-lg shadow-lg p-4">
         <div class="flex justify-between items-start justify-start">
           <div class="flex-1 text-left">
-            <h3 class="font-semibold text-gray-800">{{ title }}</h3>
-            <p class="text-sm text-gray-600 mt-1">{{ message }}</p>
+            <h3 class="font-semibold text-gray-800">
+              {{ title }}
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">
+              {{ message }}
+            </p>
           </div>
-          <button @click="hideNotification" class="text-gray-400 text-lg w-10 h-10 hover:text-gray-600 ml-2 text-xl p-0">
+          <button
+            class="text-gray-400 text-lg w-10 h-10 hover:text-gray-600 ml-2 text-xl p-0"
+            @click="hideNotification"
+          >
             &times;
           </button>
         </div>
