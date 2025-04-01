@@ -1,4 +1,18 @@
+<template>
+  <div ref="mapContainer" style="width: 100%; height: 100%">
+    <div v-if="loadError" class="error">
+      {{ loadError }}
+    </div>
+    <div v-else-if="!isScriptLoaded" class="loading">
+      Загрузка карты...
+    </div>
+  </div>
+  <notification-popup ref="notification" />
+</template>
+
 <script setup>
+import NotificationPopup from '@/components/NotificationPopup.vue';
+
 import { ref, onMounted, toRaw } from 'vue';
 import { useMapStore } from '@/stores/mapStore';
 import {
@@ -11,6 +25,7 @@ const mapStore = useMapStore();
 const mapContainer = ref(null);
 const isScriptLoaded = ref(false);
 const loadError = ref(null);
+const notification = ref();
 
 let map = null;
 let maps = null;
@@ -62,7 +77,8 @@ const handleMapClick = async (e) => {
     const routeService = RouteService(maps);
 
     const startPoint = e.get('coords');
-
+    const addressLine = await getAddress(startPoint);
+    notification.value.showNotification('Адрес', addressLine);
     // Отчищение маршрутов с карты и отметка их неактивными
     mapStore.clearRoutes(map);
 
@@ -91,8 +107,13 @@ const handleMapClick = async (e) => {
   }
 };
 
+const getAddress = async (coords) => {
+  const response = await maps.geocode(coords);
+  return response.geoObjects.get(0).getAddressLine();
+};
+
 const calculateDistances = async () => {
-  console.clear();
+  // console.clear();
   const routeService = RouteService(maps);
 
   mapStore.routes.forEach(async (route) => {
@@ -140,26 +161,6 @@ onMounted(() => {
   mapStore.updateRoutesFromLS();
 });
 </script>
-
-<template>
-  <div
-    ref="mapContainer"
-    style="width: 100%; height: 100%"
-  >
-    <div
-      v-if="loadError"
-      class="error"
-    >
-      {{ loadError }}
-    </div>
-    <div
-      v-else-if="!isScriptLoaded"
-      class="loading"
-    >
-      Загрузка карты...
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .error,
