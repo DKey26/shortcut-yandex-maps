@@ -1,3 +1,8 @@
+import {
+  ROAD_LINE_STYLE,
+  AIR_LINE_STYLE,
+} from '@/constants/map';
+
 export const RouteService = (ymaps) => ({
   async buildRoadRoute(start, end) {
     return await ymaps.route([start, end], {
@@ -6,12 +11,24 @@ export const RouteService = (ymaps) => ({
     });
   },
 
-  async drawRoadRoute(start, end) {
+  async drawRoadRoute(map, start, end) {
     const route = await ymaps.route([start, end], {
-      mapStateAutoApply: true,
       avoidTrafficJams: false,
     });
+
+    route.getPaths().each((path) => {
+      path.options.set(ROAD_LINE_STYLE);
+    });
+
+    map.geoObjects.add(route);
+
     return route;
+  },
+
+  drawAirRoute(map, start, end) {
+    const line = new ymaps.Polyline([start, end], {}, AIR_LINE_STYLE);
+    map.geoObjects.add(line);
+    return line;
   },
 
   calculateAirDistance(a, b) {

@@ -44,3 +44,34 @@ export const findNearestPolygonPoint = (ymaps, point, polygonCoords) => {
   });
   return nearestPoint;
 };
+
+export const findRoadIntersection = (route, polygon) => {
+  const routePath = route.getPaths().get(0);
+
+  return routePath.geometry._coordPath._coordinates
+    .find((point) => isPointInPolygon(point, polygon.flat(1)));
+};
+
+export const loadYmapScript = (cb) => {
+  if (window.ymaps) {
+    cb({
+      isLoaded: true,
+    });
+    return;
+  }
+
+  const script = document.createElement('script');
+  script.src = `https://api-maps.yandex.ru/2.1/?apikey=${import.meta.env.VITE_YANDEX_MAPS_API_KEY}&lang=ru_RU`;
+  script.onload = () => {
+    cb({
+      isLoaded: true,
+    });
+  };
+  script.onerror = () => {
+    cb({
+      isLoaded: false,
+      error: 'Ошибка загрузки Яндекс Карт',
+    });
+  };
+  document.head.appendChild(script);
+};

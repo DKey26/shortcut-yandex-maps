@@ -2,9 +2,9 @@
 import { ref, onMounted, toRaw } from 'vue';
 import { useMapStore } from '@/stores/mapStore';
 import {
-  MKAD_COORDS, MAP_CENTER, MAP_ZOOM, POLYGON_STYLE,
+  MKAD_COORDS, AROUND_MKAD_COORDS, MAP_CENTER, MAP_ZOOM, POLYGON_STYLE, ROAD_TYPES, POLIGON_TYPES,
 } from '@/constants/map';
-import { isPointInPolygon, findNearestPolygonPoint } from '@/utils/mapUtils';
+import { findNearestPolygonPoint, findRoadIntersection, loadYmapScript } from '@/utils/mapUtils';
 import { RouteService } from '@/services/routeService';
 
 const mapStore = useMapStore();
@@ -16,7 +16,13 @@ let map = null;
 let maps = null;
 
 // Инициализация карты
-const initMap = () => {
+const initMap = (loading) => {
+  isScriptLoaded.value = loading.isLoaded;
+  if (!loading.isLoaded) {
+    loadError.value = loading.error;
+    return;
+  }
+
   window.ymaps.ready(() => {
     try {
       map = new window.ymaps.Map(mapContainer.value, {
@@ -26,11 +32,21 @@ const initMap = () => {
 
       maps = window.ymaps;
 
+      // Добавляем полигон Ближнего подмосковья
+      const aroundMkadPolygon = new window.ymaps.Polygon(AROUND_MKAD_COORDS, {
+        hintContent: 'Ближнее подмосковье',
+      }, POLYGON_STYLE);
+      map.geoObjects.add(aroundMkadPolygon);
+
       // Добавляем полигон МКАД
       const mkadPolygon = new window.ymaps.Polygon(MKAD_COORDS, {
         hintContent: 'Московская кольцевая автодорога',
       }, POLYGON_STYLE);
       map.geoObjects.add(mkadPolygon);
+
+      if (mapStore.routes.length) {
+        drawRoutes();
+      }
 
       // Регистрируем обработчик кликов
       map.events.add('click', handleMapClick);
@@ -40,109 +56,97 @@ const initMap = () => {
   });
 };
 
-// Загрузка API Яндекс.Карт
-const loadYmapScript = () => {
-  if (window.ymaps) {
-    initMap();
-    return;
-  }
-
-  const script = document.createElement('script');
-  script.src = `https://api-maps.yandex.ru/2.1/?apikey=${import.meta.env.VITE_YANDEX_MAPS_API_KEY}&lang=ru_RU`;
-  script.onload = () => {
-    isScriptLoaded.value = true;
-    initMap();
-  };
-  script.onerror = () => {
-    loadError.value = 'Ошибка загрузки Яндекс Карт';
-  };
-  document.head.appendChild(script);
-};
-
 // Обработчик клика по карте
 const handleMapClick = async (e) => {
   try {
-    const ymaps = maps;
-    const routeService = RouteService(ymaps);
+    const routeService = RouteService(maps);
 
-    mapStore.startPoint = e.get('coords');
+    const startPoint = e.get('coords');
+
+    // Отчищение маршрутов с карты и отметка их неактивными
     mapStore.clearRoutes(map);
 
-    // Построение воздушного маршрута
-    const endPointAir = findNearestPolygonPoint(ymaps, toRaw(mapStore.startPoint), MKAD_COORDS);
-    drawAirRoute(toRaw(mapStore.startPoint), endPointAir);
+    // Построение маршрутов до МКАДа
+    const endPointAirMKAD = findNearestPolygonPoint(maps, startPoint, MKAD_COORDS);
+    const routeMKAD = await routeService.buildRoadRoute(startPoint, endPointAirMKAD);
+    const intersectionMKAD = findRoadIntersection(routeMKAD, MKAD_COORDS);
 
-    // Построение дорожного маршрута
-    const route = await routeService.buildRoadRoute(toRaw(mapStore.startPoint), endPointAir);
-    const intersection = findRoadIntersection(route);
+    // Сохранение данных в store и localStorage
+    mapStore.saveRoute(startPoint, endPointAirMKAD, ROAD_TYPES.LINE, POLIGON_TYPES.MKAD);
+    mapStore.saveRoute(startPoint, intersectionMKAD || endPointAirMKAD, ROAD_TYPES.ROAD, POLIGON_TYPES.MKAD);
 
-    if (intersection) {
-      await drawRoadRoute(toRaw(mapStore.startPoint), intersection);
-    } else {
-      await drawRoadRoute(toRaw(mapStore.startPoint), endPointAir);
-    }
+    // Построение маршрутов до ближнего подмосковья
+    const endPointAirAMKAD = findNearestPolygonPoint(maps, startPoint, AROUND_MKAD_COORDS);
+    const routeAMKAD = await routeService.buildRoadRoute(startPoint, endPointAirAMKAD);
+    const intersectionAMKAD = findRoadIntersection(routeAMKAD, AROUND_MKAD_COORDS);
 
-    // Обновление дистанций
-    const airDist = routeService.calculateAirDistance(toRaw(mapStore.startPoint), endPointAir);
-    const roadDist = await routeService.calculateRoadDistance(
-      toRaw(mapStore.startPoint),
-      intersection || endPointAir,
-    );
+    // Сохранение данных в store и localStorage
+    mapStore.saveRoute(startPoint, endPointAirAMKAD, ROAD_TYPES.LINE, POLIGON_TYPES.AROUND_MKAD);
+    mapStore.saveRoute(startPoint, intersectionAMKAD || endPointAirAMKAD, ROAD_TYPES.ROAD, POLIGON_TYPES.AROUND_MKAD);
 
-    mapStore.updateDistances(airDist, roadDist);
-    console.log(`Расстояние по воздуху: ${airDist.toFixed(2)} км`);
-    console.log(`Расстояние по дороге: ${roadDist.toFixed(2)} км`);
-
+    drawRoutes();
+    calculateDistances();
   } catch (error) {
     console.error('Ошибка построения маршрута:', error);
   }
 };
 
-// Вспомогательные методы
-const drawAirRoute = (start, end) => {
-  const line = new maps.Polyline([start, end], {
-    strokeColor: '#FF0000',
-    strokeWidth: 4,
-  });
-  mapStore.airRoute = line;
-  map.geoObjects.add(line);
-};
-
-const findRoadIntersection = (route) => {
-  const routePath = route.getPaths().get(0);
-
-  return routePath.geometry._coordPath._coordinates
-    .find((point) => isPointInPolygon(point, MKAD_COORDS.flat(1)));
-};
-
-const drawRoadRoute = async (start, end) => {
+const calculateDistances = async () => {
+  console.clear();
   const routeService = RouteService(maps);
-  const route = await routeService.drawRoadRoute(start, end);
-  mapStore.roadRoute = route;
-  map.geoObjects.add(route);
+
+  mapStore.routes.forEach(async (route) => {
+    if (!route.isActive) return;
+
+    if (route.type === ROAD_TYPES.LINE) {
+      const airDist = routeService.calculateAirDistance(toRaw(route.startPoint), toRaw(route.endPoint));
+      console.log(`Расстояние по воздуху до ${route.name === POLIGON_TYPES.MKAD
+        ? 'МКАДа:'
+        : 'ближнего подмосковья:'} ${airDist.toFixed(2)} км`);
+    } else {
+      const roadDist = await routeService.calculateRoadDistance(
+        toRaw(route.startPoint),
+        toRaw(route.endPoint),
+      );
+      console.log(`Расстояние по дороге до ${route.name === POLIGON_TYPES.MKAD
+        ? 'МКАДа:'
+        : 'ближнего подмосковья:'} ${roadDist.toFixed(2)} км`);
+    }
+  });
+};
+
+const drawRoutes = async () => {
+  const routeService = RouteService(maps);
+  mapStore.routes.forEach(async (route) => {
+    if (route.isActive) {
+      switch (route.type) {
+        case ROAD_TYPES.LINE:
+          route.instance = await routeService.drawAirRoute(map, route.startPoint, route.endPoint);
+          break;
+        case ROAD_TYPES.ROAD:
+          route.instance = await routeService.drawRoadRoute(map, route.startPoint, route.endPoint);
+          break;
+        default:
+          console.error(`Unknown route name ${route.name}`);
+          break;
+      }
+    }
+  });
 };
 
 // Инициализация при монтировании
 onMounted(() => {
-  loadYmapScript();
+  loadYmapScript(initMap);
+  mapStore.updateRoutesFromLS();
 });
 </script>
 
 <template>
-  <div
-    ref="mapContainer"
-    style="width: 100%; height: 100%"
-  >
-    <div
-      v-if="loadError"
-      class="error"
-    >
+  <div ref="mapContainer" style="width: 100%; height: 100%">
+    <div v-if="loadError" class="error">
       {{ loadError }}
     </div>
-    <div
-      v-else-if="!isScriptLoaded"
-      class="loading"
-    >
+    <div v-else-if="!isScriptLoaded" class="loading">
       Загрузка карты...
     </div>
   </div>
@@ -151,13 +155,13 @@ onMounted(() => {
 <style scoped>
 .error,
 .loading {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 20px;
-    background: white;
-    border-radius: 5px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px;
+  background: white;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 </style>
